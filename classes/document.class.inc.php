@@ -167,13 +167,19 @@ class Document{
 	}
 	
 	/************************************************************
-	  Duplicatig doc with TVs
+	  Duplicating doc with TVs
 	*************************************************************/
 	function Duplicate(){
 		if($this->isNew) return;
+	// escape text fields (2 Aug 2012)
+		foreach ($this->fields as $key=>$field) {
+			$this->fields[$key]	= mysql_real_escape_string($field);
+		}
 		$all_tvs=$this->fillOldTVValues();
 		foreach($all_tvs as $tv=>$value)
-			if(!isset($this->tvs[$tv])) $this->tvs[$tv]=$value;
+			if(!isset($this->tvs[$tv])) {
+				$this->tvs[$tv]= mysql_real_escape_string($value);
+			}
 		$this->oldTVs=array();
 		$this->isNew=true;
 		unset($this->fields['id']);
