@@ -137,8 +137,9 @@ if ($isPostBack) {
 	   		$mnuidx = 0;
 	   	}
 
-// retrieve showInMenu setting
+// retrieve showInMenu setting and invert for hidemenu field
 	    $showinmenu = (isset($fields['show'])) ? 1 : $showinmenu;
+	    $hidemenu = 1 - $showinmenu;
 
 // validate and format dates, set published or unpublished
 // NB unpub_date = displayTo + 1 day, or startDate + 1 day if no displayTo for an event
