@@ -1,142 +1,161 @@
 <?php
 /***************************************************************
-  Name: Docmanager
-  Description: Class for editing/creating/duplicating/deleting documents
-  Version 0.5.3
-  Author: ur001
-  e-mail: ur001@mail.ru
-
-  Example of use:
-	require_once('assets/libs/docmanager/document.class.inc.php');
-	$doc = new Document();
-	$doc->Set('parent',$folder);
-	$doc->Set('alias','post'.time());
-	$doc->Set('content','document content');
-	$doc->Set('template','GuestBookComments');
-	$doc->Set('tvComment','post to comment');
-	$doc->Save();
-
-  Area of use:
-	guestbooks, blogs, forums, frontend manager modules
-
-  TODO:
-	* document_groups
-
-  Important:
-	2) Not to be used just for receiving TV values or deleting docs. Use  
-	   $modx->getTemplateVars(); and $modx->db->delete(); instead.
-
+Document class 
+for PubKit v 1.2  Oct 2012  
+To create new document resources, update old ones, clone and delete
+Includes get and set for TVs
 ***************************************************************/
-class Document{
-	public $fields;	// doc fields array
-	public $tvs;		// TV array
-	
-	public $tvNames;	// TV names array
-	public $oldTVs;	// TV values array
-	public $isNew;		// true - new doc, false - existing doc
 
-	/***********************************************
-	  Initializing class
-	  $id   - existing doc id or 0 for new doc
-	  $fields - comma delimited field list
-	************************************************/	
-	function Document($id=0,$fields="*"){
+class Document {
+	public $contentTable;
+	public $columns; // resource fields list
+	public $fields;	// doc fields array
+	public $tvs;	// TV array
+	public $tvIds;	// TV names array
+	public $oldTVs;	// TV values array
+	public $isNew;	// true - new doc, false - existing doc
+
+	function __construct($id = 0, $fields = "*") {
 		global $modx;
-		$this->isNew = $id==0;
-		if(!$this->isNew){
-			$this->fields = $modx->getPageInfo($id,0,$fields);
-			$this->fields['id']=$id;
-		}
-		else
+
+		$this->isNew = ($id == 0);
+
+		$this->contentTable = $modx->getFullTableName('site_content');
+		$this->columns = array_keys($modx->db->getTableMetaData($this->contentTable));
+
+		if ($this->isNew) {
 			$this->fields = array(
-				'pagetitle'	=> 'New document',
+				'pagetitle'	=> $modx->config['site_name'],
 				'alias'		=> '',
 				'parent'	=> 0, 
 				'createdon' => time(),
 				'createdby' => '0',
 				'editedon' 	=> '0',
 				'editedby' 	=> '0',
-				'published' => '1',
+				'published' => $modx->config['publish_default'],
 				'deleted' 	=> '0',
 				'hidemenu' 	=> '1',
-				'template' 	=> '0',
+				'template' 	=> $modx->config['default_template'],
 				'content' 	=> ''
-			);
+			); 
+		} else { 
+			$this->fields = $modx->getPageInfo($id, 0, $fields);
+			$this->TvIds();
+			$this->fields['id'] = $id;
+		}
 	}
-	
-	/***********************************************
-	  Saving/Updating document
-	************************************************/	
-	function Save(){
+
+	function SaveAs($id) { 
+/*		global $modx; 
+		$modx->db->update($this->fields, $this->contentTable, "id = $id");
+*/
+		$this->isNew = false;
+		$this->fields['id'] = $id;
+		$this->Save();
+	} 
+
+	function Save() { 
 		global $modx;
-		$tablename=$modx->getFullTableName('site_content');
-		if($this->isNew){
-			$this->fields['id']=$modx->db->insert($this->fields, $tablename);
+		
+		if ($this->isNew) { 
+			$this->fields['id'] = $modx->db->insert($this->fields, $this->contentTable);
 			$this->isNew = false;
 		} else {
-			$id=$this->fields['id'];
-			$modx->db->update($this->fields, $tablename, "id=$id");
+			$id = $this->fields['id'];
+			$modx->db->update($this->fields, $this->contentTable, "id = $id");
+		}  
+
+// Save TVs if any
+		if (count($this->tvs) > 0) {
+			$this->SaveTvs(); 
 		}
-		if(is_array($this->tvs)) $this->saveTVs();
+		
+		return $this->fields['id'];
 	}
 
+	function SaveTvs() { 
+		global $modx;
 
-	/***********************************************
-	  Receiving doc values ot TV
-	  $field - doc value or TV with 'tv' prefix
-	  Result: doc value, TV or null
-	************************************************/	
-	function Get($field){ 
-		switch(1){
-			case substr($field,0,2)=='tv': return $this->GetTV(substr($field,2));
-			default: return isset($this->fields[$field]) ? $this->fields[$field] : null; 
-		}
-	}
+		$this->oldTVs = $this->PopulateTvs();
+		$tvc = $modx->getFullTableName('site_tmplvar_contentvalues');
+		$id = $this->fields['id'];
 	
-	/***********************************************
-	  Setting doc or TV value
-	  $field - doc or TV (with prefix 'tv') name
-	  $value - value
-	  Result: true or false
-	************************************************/	
+		foreach ($this->tvs as $tv => $value) { 
+			$tmplvarid = $this->tvIds[$tv];
+			$value = $modx->db->escape($value); 
+			
+			if (!isset($this->oldTVs[$tv])) {
+			$sql="INSERT INTO $tvc (tmplvarid,value,contentid) VALUES ($tmplvarid, '$value', $id)";
+		} else {
+			if ($this->oldTVs[$tv] == $this->tvIds[$tv]) {
+				continue;
+			}
+			$sql="UPDATE $tvc SET value='$value' WHERE tmplvarid = $tmplvarid AND contentid = $id";
+		}
+		$modx->db->query($sql);
+		}
+	}
+
+	function Get($field) { 
+		if (!in_array($field, $this->columns)) {
+			$result = $this->GetTV($field);
+		} else {
+			$result = isset($this->fields[$field]) ? $this->fields[$field] : null; 
+		}
+		return $result;
+	}
+
 	function Set($field, $value){
-		switch(1){
-			case substr($field,0,2)=='tv':		return $this->SetTV(substr($field,2), $value);
-			case $field=='template':		return $this->SetTemplate($value);
-			default: $this->fields[$field]=$value;	return true;
+/*		if (substr($field, 0, 2) == 'tv') {
+			$result = $this->SetTV(substr($field,2), $value);
 		}
+*/
+		if (!in_array($field, $this->columns)) {
+			$result = $this->SetTV($field, $value);
+		}
+		elseif ($field == 'template') {
+		 	$result = $this->SetTemplate($value);
+		} else {
+			$result = $this->fields[$field] = $value;
+		}
+		return $result;
 	}
-	
-	
-	/***********************************************
-	  Receiving TV 
-	  $name - TV name
-	************************************************/
-	function GetTV($tv){
-		if(!is_array($this->tvs)){
-			if($this->isNew) return null;
-			$this->tvs=array();
-		}
-		// Look in the values created by Set() function
-		if(isset($this->tvs[$tv])) return $this->tvs[$tv];
-		// Look in the TVs already defined for the document
-		// Call fillOldTVValues() if not yet retrieved
-		if(!is_array($this->oldTVs)){
-			if($this->isNew) return null;
-			$this->oldTVs=$this->fillOldTVValues();
-		}
-		if(isset($this->oldTVs[$tv])) return $this->oldTVs[$tv];
-		return null;
-	}
-	
+
 	/***********************************************
 	  Setting TV value
 	************************************************/
-	function SetTV($tv,$value){
-		if(!is_array($this->tvs)) $this->tvs=array();
-		$this->tvs[$tv]=$value;
+	function SetTV($tv,$value){ 
+		
+		if (!is_array($this->tvIds)) {
+			$this->tvIds();
+		}
+		
+		if (!is_array($this->tvs)) {
+			$this->tvs = array();
+		}
+
+		if (array_key_exists($tv, $this->tvIds)) { 
+			$this->tvs[$tv] = $value;	
+		}   ///// else error - trying to set non-existent TV
 	}
 
+	function GetTV($tv) { 
+		if (!is_array($this->tvs)) {
+			$this->tvs = array();
+			$result = null;
+		}
+
+		if (isset($this->tvs[$tv])) {
+			$result = $this->tvs[$tv];
+		} else {
+			$this->oldTVs = $this->PopulateTvs();
+			if (isset($this->oldTVs[$tv])) {
+				$result = $this->oldTVs[$tv];
+			}	
+		} 
+		return $result;
+	}
+	
 	/***********************************************
 	  Setting doc template
 	  $tpl - template name or id
@@ -145,92 +164,107 @@ class Document{
 		global $modx;
 		// Retrieve id of template if name is given
 		if(!is_numeric($tpl)) {
-			$tablename=$modx->getFullTableName('site_templates');
+			$tablename = $modx->getFullTableName('site_templates');
+			
 			$tpl = $modx->db->getValue("SELECT id FROM $tablename WHERE templatename='$tpl' LIMIT 1");
-			if(empty($tpl)) return false;
-		}
+			
+			if(empty($tpl)) {
+				$tpl = 0;
+			}
+		} 
 		
 		$this->fields['template']=$tpl; 
-		return true;
+
+		return $tpl;
 	}
 
 	/************************************************************
 	  Deleting doc with TVs
 	*************************************************************/
 	function Delete(){
-		if($this->isNew) return;
 		global $modx;
-		$id=$this->fields['id'];
-		$modx->db->delete($modx->getFullTableName('site_content'),"id=$id");
-		$modx->db->delete($modx->getFullTableName('site_tmplvar_contentvalues'),"contentid=$id");
-		$this->isNew=true;
+
+		$id = $this->fields['id'];
+		$modx->db->delete($this->contentTable, "id = $id");
+		$modx->db->delete($modx->getFullTableName('site_tmplvar_contentvalues'), "contentid = $id");
+		$this->isNew = true;
 	}
 	
 	/************************************************************
-	  Duplicatig doc with TVs
+	  Duplicate doc with TVs
 	*************************************************************/
-	function Duplicate(){
-		if($this->isNew) return;
-		$all_tvs=$this->fillOldTVValues();
-		foreach($all_tvs as $tv=>$value)
-			if(!isset($this->tvs[$tv])) $this->tvs[$tv]=$value;
-		$this->oldTVs=array();
-		$this->isNew=true;
-		unset($this->fields['id']);
-	}
-	
-	/************************************************************
-	  Saving TV values, maintenance function. Only $tvNames values are saved, 
-        If a TV exists in oldTVs, then updating, else inserting
-	*************************************************************/
-	function saveTVs(){
+	function Duplicate($dupTvs = true, $menuInc = 1) {
 		global $modx;
-		if(!is_array($this->tvNames))$this->fillTVNames();
-		if(!is_array($this->oldTVs) && !$this->isNew)
-			$this->oldTVs=$this->fillOldTVValues();
-		else 
-			$this->oldTVs = array();
-			
-		$tvc = $modx->getFullTableName('site_tmplvar_contentvalues');
-		$id=$this->fields['id'];
-		foreach($this->tvs as $tv=>$value)
-		if(isset($this->tvNames[$tv])){
-			$tmplvarid=$this->tvNames[$tv];		
-			if(isset($this->oldTVs[$tv])){
-				if($this->oldTVs[$tv]==$this->tvNames[$tv]) continue;
-				$sql="UPDATE $tvc SET value='$value' WHERE tmplvarid=$tmplvarid AND contentid=$id";
+		
+		foreach ($this->fields as $key=>$field) {
+			$this->fields[$key]  = $modx->db->escape($field);
+		}
+		$this->fields['alias'] = '';
+		$this->fields['createdon'] = time();
+		$this->fields['createdby'] = 0;
+		$this->fields['editedon'] = 0;
+		$this->fields['editedby'] = 0;
+		$this->fields['menuindex'] += $menuInc;
+
+		$all_tvs = $this->PopulateTvs();
+
+// set TVs to default values if required
+		if ($dupTvs) { 
+			foreach ($all_tvs as $tv=>$value) {
+				if (!isset($this->tvs[$tv])) {
+					$this->tvs[$tv] = $value; 
+				}
 			}
-			else
-				$sql="INSERT INTO $tvc (tmplvarid,value,contentid) VALUES ($tmplvarid,'$value',$id)";
-			$modx->db->query($sql);
+		} else {
+			
+		}
+		$this->oldTVs = array();
+		
+		$this->isNew = true;
+		unset($this->fields['id']);  
+	}
+	
+	function PopulateTvs($defaults = false) {
+		global $modx;
+		
+		$tvars = $modx->getFullTableName('site_tmplvars');
+		$tvc = $modx->getFullTableName('site_tmplvar_contentvalues');
+		$tvt = $modx->getFullTableName('site_tmplvar_templates');
+		
+		if (!$defaults) {
+			$sql = "SELECT tvs.name as name, tvc.value as value
+			FROM $tvc tvc INNER JOIN $tvars tvs 
+			ON tvs.id = tvc.tmplvarid 
+			WHERE tvc.contentid = " . $this->fields['id'];
+		} else {
+			$sql = "SELECT tvs.name AS name, tvs.default_text AS value
+			FROM $tvt AS tvt INNER JOIN $tvars AS tvs 
+			ON tvs.id = tvt.tmplvarid 
+			WHERE tvt.`templateid` = " . $this->fields['template'];
+		}
+		
+		$result = $modx->db->query($sql);
+		
+		while ($row = $modx->db->getRow($result)) {
+			$tvs[$row['name']] = $row['value'];
+		}
+		return $tvs;		
+	}
+
+	function TvIds() {
+		global $modx;
+		
+		$this->tvIds = array();
+		
+		$result = $modx->db->select('id, name', $modx->getFullTableName('site_tmplvars'));
+		
+		while ($row = $modx->db->getRow($result)) {
+			$this->tvIds[$row['name']] = $row['id'];
 		}
 	}
 	
-	/************************************************************
-	  Filling TV array ($oldTVs), maintenance function. 
-	  Differs from $modx->getTemplateVars
-	*************************************************************/
-	function fillOldTVValues(){
-		global $modx;
-		$tvc = $modx->getFullTableName('site_tmplvar_contentvalues');
-		$tvs = $modx->getFullTableName('site_tmplvars');
-		$sql = 'SELECT tvs.name as name, tvc.value as value '.
-		       "FROM $tvc tvc INNER JOIN $tvs tvs ".
-			   'ON tvs.id=tvc.tmplvarid WHERE tvc.contentid ='.$this->fields['id'];
-		$result = $modx->db->query($sql);
-		$TVs = array();
-		while ($row = mysql_fetch_assoc($result)) $TVs[$row['name']] = $row['value'];
-		return $TVs;
-	}
-	
-	/************************************************************
-	  Fillin TV names array ($tvNames)), maintenance function. 
-	*************************************************************/	
-	function fillTVNames(){
-		global $modx;
-		$this->tvNames = array();
-		$result = $modx->db->select('id, name', $modx->getFullTableName('site_tmplvars'));
-		while ($row = mysql_fetch_assoc($result)) $this->tvNames[$row['name']] = $row['id'];
+	function TvDefaultValues() {
+		
 	}
 }
 ?>

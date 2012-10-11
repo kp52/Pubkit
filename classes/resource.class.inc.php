@@ -2,6 +2,9 @@
 /*  Resource class
 	Common functions for document-based items such as news & events posts
 	Save, Delete, get/set fields etc. are defined in Document class
+	
+	v 1.2
+	Keith Penton (KP52) October 2012
  */
 
 class Resource {
@@ -15,7 +18,7 @@ function __construct($pid, $fields, $lang) {
 	$this->lang = $lang;
 
 /* Update item object from parameters: extra TVs and doc fields,
-   change defaults for (scalar) item properties */
+   change defaults for item properties  */
 	$props = get_class_vars(get_class($this));
 
 	foreach ($props as $propName => $prop) {
