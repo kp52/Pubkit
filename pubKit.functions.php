@@ -1,7 +1,7 @@
 <?php
 // pubKit.Functions.php
-// general functions for PubKit E1.0.0
-// Oct 2011
+// general functions for PubKit E1.2.0
+// Oct 2012
 
 function setAlias ($id, $title, $permalinks, $permaLength) {
 	if ($permalinks == 1) {
@@ -135,36 +135,6 @@ function resetFormRank($table, $inc=1, $order="") {
 	return $next;
 }
 
-// user function from CSS Star Rating snippet
-// http://modxcms.com/extras/package/?package=81
-function setTemplateVar($value, $docID, $tplVarName) {
-        global $modx;
-
-        // get tmplvar id
-        $tplName = $modx->getFullTableName('site_tmplvars');
-        $tplRS = $modx->db->select('id', $tplName, 'name="' . $tplVarName . '"');
-        $tplRow = $modx->db->getRow($tplRS);
-
-        $tblName = $modx->getFullTableName('site_tmplvar_contentvalues');
-
-        $selectQuery = $modx->db->select('*', $tblName, 'contentid=' . $docID . ' AND tmplvarid=' . $tplRow['id']);
-
-        $updFields = array (
-                'value' => $value
-        );
-        $insFields = array (
-                'tmplvarid' => $tplRow['id'],
-                'contentid' => $docID,
-                'value' => $value
-        );
-
-        if ($modx->db->getRecordCount($selectQuery) < 1) {
-                $modx->db->insert($insFields, $tblName);
-        } else {
-                $modx->db->update($updFields, $tblName, 'contentid=' . $docID . ' AND tmplvarid=' . $tplRow['id']);
-        }
-}
-
 /*  Upload file
 	Return result code from upload if error
 	Return uploaded file path if OK
@@ -208,4 +178,18 @@ function Upload($upload, $filesHome='assets/files/', $allowedTypes=NULL ) {
 	return $outcome;
 }
 
+function debug($line = '', $vars, $logfile = 'H:/pkDebug.htm') {
+	$logString = "\n<pre>";
+	if (!is_array($vars)) {
+		$vars = explode(',', $vars);
+	}
+	
+	foreach ($vars as $var) {
+		$logString .= "$line: " . print_r($var, 1) . "\n";
+	}
+	$logString .=  "</pre>\n\n";
+	
+	file_put_contents($logfile, $logString, FILE_APPEND);
+	
+	}
 ?>

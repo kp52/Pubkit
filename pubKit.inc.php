@@ -1,18 +1,19 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: E1.0
+#  version: E1.2
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
 #  it also creates instance of the object representing the resource
+#  
 #::::::::::::::::::::::::::::::::::::::::
 
 // define location of main MODx content table
 $contentTable = $modx->getFullTableName('site_content');
 
 // test if input has come back from form (check for hidden field)
-$isPostBack = (isset($fields[$formName])) ? true:false;
+$isPostBack = (isset($fields[$formName])) ? true:false; 
 
 // 2-stage deletion - first prompt, then delete if confirmed
 if (isset($fields['confirmDeletion'])) {
@@ -62,7 +63,7 @@ if (isset($formtpl)) {
 }
 
 // form submission: check mandatory fields, build error message
-if ($isPostBack) {
+if ($isPostBack) { 
 
 // handle file upload, flagged by class having uploadFile property
 	if (isset($item->uploadFile)) {
@@ -139,6 +140,7 @@ if ($isPostBack) {
 
 // retrieve showInMenu setting
 	    $showinmenu = (isset($fields['show'])) ? 1 : $showinmenu;
+		$hidemenu = 1 - $showinmenu;
 
 // validate and format dates, set published or unpublished
 // NB unpub_date = displayTo + 1 day, or startDate + 1 day if no displayTo for an event
@@ -161,7 +163,15 @@ if ($isPostBack) {
 // make previews unpublished, always update alias on return from preview
 		if (isset($fields['preview'])) {
 			$published = 0;
-			$updateAlias = TRUE;
+
+// populate preview page if using true previews
+			if (isset($previewId)) {
+				$urId = isset($docId) ? $docId : $previewId;
+				$docId = $previewId;
+				$postid = $previewId;
+			} else {
+				$updateAlias = true;
+			}
 		}
 
 // set user for author fields; web user ID is negated
@@ -175,7 +185,7 @@ if ($isPostBack) {
 // *********** CREATE || UPDATE DOCUMENT **************
 // Use DocManager class to create/update document, including TV values
 // TO DO: convert introtext & content to entities if TEXTAREA, not if RT input
-		$doc = new Document($docId);
+		$doc = new Document($docId); 
 // reference type for weblinks
 		if ($fields['type'] === 'reference') {
 			$doc->Set('type','reference');
@@ -210,7 +220,7 @@ if ($isPostBack) {
 // rewrite TV values
 		foreach ($item->tvs as $tv=>$value) {
 		    $value = (is_array($value)) ? implode('||', $value) : $value;
-			$doc->Set('tv' . $tv, $modx->db->escape(htmlspecialchars($value)));
+			$doc->Set($tv, $modx->db->escape(htmlspecialchars($value)));
 		}
 // Leave previous values if updating existing document
 		if (empty($docId)) {
@@ -239,7 +249,6 @@ if ($isPostBack) {
 	    $redirect = TRUE;
 	}
 }
-
 /******************** Form display operations *******************
 * New item, re-edit, request/do deletion,
 * or redisplay with error messages and entered data
@@ -280,10 +289,9 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 // update an item TV - e.g. set the archive flag
 // TV name in request variable 'tv', value to be entered in 'value'
-// NO CHECK MADE IF TV EXISTS! IF NOT = CRASH, BURN!!
 	case 'updateTv':
-
-		setTemplateVar($fields['myValue'], $docId, $fields['tvName']);
+		$doc->Set($fields['tvName'], $fields['myValue']);
+		$doc->SaveTvs();
 
         $postid = $fields['returnId'];
 	    $redirect = TRUE;
@@ -323,9 +331,9 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 // retrieve TV values. $fields array will be made into placeholders later
 		foreach($item->tvs as $tvName=>$tv) {
-			$tv = $doc->Get('tv' . $tvName);
+			$tv = $doc->Get($tvName);
 			$fields[$tvName] = $tv;
-		}
+		} 
 // TVs retrieved in raw format, no widget processing
 		if (!empty($tagTvs)) {
 			foreach ($tagTvs as $tagTv => $elements) {
@@ -343,7 +351,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		} else {
           $modx->setPlaceholder('itemStatus', $lang['status_published']);
         }
-        if ($doc->Get('tvpkPreviewFlag') == 1) {
+        if ($doc->Get('pkPreviewFlag') == 1) {
           $modx->setPlaceholder('previewStatus', $lang['status_preview']);
         } else {
           $modx->setPlaceholder('previewStatus', NULL);
@@ -353,32 +361,51 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		break;
 
 // Publish (from button in preview)
+    case 'publish': 
+// never-saved document has preview's ID. 
+// revised and previewed docId set to old ID by preview snippet
+// previews using old scheme will have a docId by now
+		if (isset($previewId)) {
+			$previewDoc = new Document($previewId); print_r($previewDoc);
+			$previewDoc->Duplicate();      
+			$previewDoc->Set('parent', $folder);
+
+			if ($docId == $previewId) {
+				$docId = $previewDoc->Save();
+			} else {
+				$previewDoc->SaveAs($docId);
+			}
+		}
+
 // create new doc object - don't want to rewrite every field
-    case 'publish':
-		$doc = new Document($docId, 'published,pub_date,introtext,content');
+		$doc = new Document($docId, 'published,pub_date,introtext,content'); print_r($doc;)
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
 		$publishable = pubUnpub(
-            $doc->Get('tvpkDate'),
+            $doc->Get('pkDate'),
             $doc->Get('pub_date'),
-            $doc->Get('tvpkDateTo'),
+            $doc->Get('pkDateTo'),
             $item->singleDay
 			);
-        $introtext = $doc->Get('introtext');
-        $content   = $doc->Get('content');
+
 // copy in text from intro if requested using +intro+
         $content   = str_replace('+intro+', $introtext, $content);
+
+        $introtext = $doc->Get('introtext');
+        $content   = $doc->Get('content');
         $doc->Set('introtext', $modx->db->escape($introtext));
         $doc->Set('content', $modx->db->escape($content));
 		$doc->Set('published', $publishable['published']);
-// see pubKit.functions.php
-		setTemplateVar(0, $docId, 'pkPreviewFlag');
+
+		$doc->Set('pkPreviewFlag', 0);
+
+		unset($fields['preview']);
 
 		$doc->Save();
 
         $postid = $fields['returnId'];
         $redirect = TRUE;
 		break;
-
+exit;
 	case 'move':
 // see comment on 'publish' re new document object
 
@@ -400,8 +427,8 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 		$doc->Duplicate();
 		$doc->Set('alias', '');
-		$doc->Set('tvpkDate', $item->defaultDate);
-		$doc->Set('tvpkDateTo', NULL);
+		$doc->Set('pkDate', $item->defaultDate);
+		$doc->Set('pkDateTo', NULL);
 		$doc->Set('createdon', time());
 		$doc->Set('pub_date', 0);
 		$doc->Set('unpub_date', 0);
@@ -473,9 +500,10 @@ if ($redirect) {
     	$landing = $modx->makeUrl($doc->Get('id'));
     }
 
-  	if (isset($fields['preview'])) {
+  	if (isset($fields['preview'])) { 
 		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
   		$landing .= 'template=preview&docId=' . $doc->Get('id');
+		$landing .= isset($urId) ? '&urId=' . $urId : "";
 	} else {
    		$landing .= (!empty($docId)) ? '#' . $prefix . $docId: '';
 	}
@@ -492,7 +520,7 @@ if(!$allowAnyPost && !$modx->isMemberOfWebGroup($postgrp)) {
 // populate form fields placeholders with any existing data
 // convert quotes etc. so text fields are not mangled
 // assuming XHTML, single quotes are left alone
-	foreach($fields as $n=>$v) {
+	foreach($fields as $n=>$v) { 
 		if (is_string($v)) {
 	        $v = htmlspecialchars($v);
 		}
@@ -502,15 +530,21 @@ if(!$allowAnyPost && !$modx->isMemberOfWebGroup($postgrp)) {
 
 // set value of rich text TV assigned to editing page (Nov 2011)
 if (isset($rtcontent)) {
+
 	if (substr($rtcontent, 0, 2) == 'tv') {
 		$rtTv = substr($rtcontent, 2);
 	} else {
 		$rtTv = $rtcontent;
 	}
-	$rtValue = $fields[$rtcontent];
+	
+	$rtValue = $fields[$rtcontent]; 
 	$pageInfo = $modx->getPageInfo($modx->documentIdentifier, '', 'id, published');
-	setTemplateVar($rtValue, $pageInfo['id'], $rtTv);
-	$formatted  = implode('', $modx->getTemplateVarOutput($rtTv, '', $pageInfo['published']));
+
+	$editDoc = new Document($pageInfo['id'], 'published');
+	$editDoc->Set($rtTv, $rtValue); 
+	$editDoc->Save();
+
+	$formatted  = implode('', $modx->getTemplateVarOutput($rtTv, '', $pageInfo['published'])); 
 	$modx->setPlaceholder($rtTv, $formatted);
 }
 
@@ -519,7 +553,6 @@ if (isset($rtcontent)) {
 if (!empty($secureForm)) {
 	$modx->runSnippet('setSecurityToken');
 }
-
 // return form to snippet call, with debug at top
 $pubKit = $dbg . $formtpl;
 ?>
