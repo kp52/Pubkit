@@ -1,7 +1,7 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: E1.2
+#  version: E1.5
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
@@ -168,7 +168,7 @@ if ($isPostBack) {
 			if (isset($previewId)) {
 				$urId = isset($docId) ? $docId : $previewId;
 				$docId = $previewId;
-				$postid = $previewId;
+				$postid = $drafts;
 			} else {
 				$updateAlias = true;
 			}
@@ -308,9 +308,10 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 	    $redirect = TRUE;
 		break;
 
+   case 're-edit':
+ 		$doc = new Document($previewId);
 // update item
-   case 'edit':
-
+   case 'edit': 
 		$modx->setPlaceholder('docId',     $doc->Get('id'));
 		$modx->setPlaceholder('pagetitle', $doc->Get('pagetitle'));
 		$modx->setPlaceholder('longtitle', $doc->Get('longtitle'));
@@ -366,7 +367,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 // revised and previewed docId set to old ID by preview snippet
 // previews using old scheme will have a docId by now
 		if (isset($previewId)) {
-			$previewDoc = new Document($previewId); print_r($previewDoc);
+			$previewDoc = new Document($previewId); 
 			$previewDoc->Duplicate();      
 			$previewDoc->Set('parent', $folder);
 
@@ -378,7 +379,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		}
 
 // create new doc object - don't want to rewrite every field
-		$doc = new Document($docId, 'published,pub_date,introtext,content'); print_r($doc;)
+		$doc = new Document($docId, 'published,pub_date,introtext,content'); 
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
 		$publishable = pubUnpub(
             $doc->Get('pkDate'),
@@ -401,11 +402,10 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		unset($fields['preview']);
 
 		$doc->Save();
-
         $postid = $fields['returnId'];
         $redirect = TRUE;
 		break;
-exit;
+
 	case 'move':
 // see comment on 'publish' re new document object
 
@@ -502,7 +502,7 @@ if ($redirect) {
 
   	if (isset($fields['preview'])) { 
 		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
-  		$landing .= 'template=preview&docId=' . $doc->Get('id');
+  		$landing .= 'template=preview&class=' . $class . '&docId=' . $doc->Get('id');
 		$landing .= isset($urId) ? '&urId=' . $urId : "";
 	} else {
    		$landing .= (!empty($docId)) ? '#' . $prefix . $docId: '';

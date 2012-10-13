@@ -1,7 +1,7 @@
 <?php
 /***************************************************************
 Document class 
-for PubKit v 1.2  Oct 2012  
+for PubKit v 1.5  Oct 2012  
 To create new document resources, update old ones, clone and delete
 Includes get and set for TVs
 ***************************************************************/
@@ -46,9 +46,6 @@ class Document {
 	}
 
 	function SaveAs($id) { 
-/*		global $modx; 
-		$modx->db->update($this->fields, $this->contentTable, "id = $id");
-*/
 		$this->isNew = false;
 		$this->fields['id'] = $id;
 		$this->Save();
@@ -231,7 +228,7 @@ class Document {
 		$tvc = $modx->getFullTableName('site_tmplvar_contentvalues');
 		$tvt = $modx->getFullTableName('site_tmplvar_templates');
 		
-		if (!$defaults) {
+		if (!$defaults && !$this->isNew) {
 			$sql = "SELECT tvs.name as name, tvc.value as value
 			FROM $tvc tvc INNER JOIN $tvars tvs 
 			ON tvs.id = tvc.tmplvarid 
