@@ -62,6 +62,11 @@ if (isset($formtpl)) {
 	$formtpl = $lang['err_form'];
 }
 
+// check that drafts parameter is set if using true previews
+if (isset($previewId) && !isset($drafts)) {
+	$formtpl = $lang['err_previews'];
+} 
+
 // form submission: check mandatory fields, build error message
 if ($isPostBack) { 
 
