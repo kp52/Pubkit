@@ -11,7 +11,8 @@ $lang = array(
 	'startTime' =>'Start time',
 	'endTime' =>'End time',
 
-	'err_form' => '&amp;formtpl missing:You must define the form template in a chunk or a file',
+	'err_form' => '&amp;formtpl missing: You must define the form template in a chunk or a file',
+	'err_previews' => '&amp;drafts missing: You must specify the contaner folder for preview documents',
 	'err_postid' => '&amp;postid missing: You must define the page to go to after submitting the data',
 	'err_tags' => 'Tag fields incomplete',
 	'err_title' => 'You must enter a title',

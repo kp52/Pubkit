@@ -171,13 +171,13 @@ if ($isPostBack) {
 
 // populate preview page if using true previews
 			if (isset($previewId)) {
-				$urId = isset($docId) ? $docId : $previewId;
+				$urId = isset($docId) ? $docId : "";
 				$docId = $previewId;
 				$postid = $drafts;
 			} else {
 				$updateAlias = true;
 			}
-		}
+		} 
 
 // set user for author fields; web user ID is negated
 		if ($_SESSION['webValidated'] == 1) {
@@ -188,7 +188,7 @@ if ($isPostBack) {
 		}
 
 // *********** CREATE || UPDATE DOCUMENT **************
-// Use DocManager class to create/update document, including TV values
+// Use Document class to create/update document, including TV values
 // TO DO: convert introtext & content to entities if TEXTAREA, not if RT input
 		$doc = new Document($docId); 
 // reference type for weblinks
@@ -315,6 +315,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
    case 're-edit':
  		$doc = new Document($previewId);
+		$fields['docId'] = $fields['urId'];
 // update item
    case 'edit': 
 		$modx->setPlaceholder('docId',     $doc->Get('id'));
@@ -449,6 +450,12 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		$landing .= '?docId=' . $docId . '&command=edit';
 		$modx->sendRedirect($landing);
 		break;
+		
+	case 'cancel':
+		if (!empty($fields['returnId'])) {
+			$postid = $fields['returnId'];
+		}
+		$redirect = true;
 	}
 } else {
 
@@ -507,8 +514,9 @@ if ($redirect) {
 
   	if (isset($fields['preview'])) { 
 		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
-  		$landing .= 'template=preview&class=' . $class . '&docId=' . $doc->Get('id');
-		$landing .= isset($urId) ? '&urId=' . $urId : "";
+  		$landing .= 'template=preview&class=' . $class; 
+		$landing .= '&docId=' . $doc->Get('id');
+		$landing .= '&urId=' . $urId;
 	} else {
    		$landing .= (!empty($docId)) ? '#' . $prefix . $docId: '';
 	}
