@@ -294,7 +294,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 // update an item TV - e.g. set the archive flag
 // TV name in request variable 'tv', value to be entered in 'value'
-	case 'updateTv':
+	case 'updatetv':
 		$doc->Set($fields['tvName'], $fields['myValue']);
 		$doc->SaveTvs();
 
@@ -303,7 +303,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		break;
 
 // set a document field directly - e.g. Unpublish
-	case 'setField':
+	case 'setfield':
 
 		$doc = new Document($docId, $fields['docField']);
 		$doc->Set($fields['docField'], $fields['myValue']);
