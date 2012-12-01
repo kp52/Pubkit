@@ -166,10 +166,11 @@ class Document {
 			$tpl = $modx->db->getValue("SELECT id FROM $tablename WHERE templatename='$tpl' LIMIT 1");
 			
 			if(empty($tpl)) {
-				$tpl = 0;
+//				$tpl = 0;
+				$tpl = $modx->config['default_template'];
 			}
 		} 
-		
+
 		$this->fields['template']=$tpl; 
 
 		return $tpl;
