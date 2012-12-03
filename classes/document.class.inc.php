@@ -1,9 +1,11 @@
 <?php
 /***************************************************************
 Document class 
-for PubKit v 1.5  Oct 2012  
+for PubKit v 1.5  Dec 2012  
 To create new document resources, update old ones, clone and delete
 Includes get and set for TVs
+-----------------
+Dec 2012: setTemplate to site default if name not found
 ***************************************************************/
 
 class Document {
