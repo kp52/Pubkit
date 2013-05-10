@@ -88,7 +88,8 @@ function Save($pid=NULL, $fields=array()) {
 			$pid = $this->nsId;
 		} else {
 			$modx->db->insert($dbFields, $this->table);
-			$pid = mysql_insert_id();
+			$pid = $modx->db->getInsertId();
+
 		}
 	} else {
 		$modx->db->update($dbFields, $this->table, "id = '$pid'");
