@@ -4,9 +4,9 @@
 #  custom database tables including messages (contact forms, guestbooks)
 #  Author: Keith Penton (KP52)
 #  From original concepts by Raymond Irving (NewsPublisher), ur001 (document class)
-#  
-#  Version: 1.5.0
-#  October 2012
+#
+#  Version: 1.6.0
+#  January 2014
 ######################################################################################
 #  Parameters:
 #    &class       - type of item: blog, news post, event, custom record... Default = post
@@ -71,6 +71,9 @@ if (!empty($mail)) {
 }
 
 define('ONE_DAY',86400); //seconds in a day (for calculating unpub dates)
+
+// For Clipper - snippet parameters no longer passed in $params
+$params = $modx->event->params;
 
 // get properties and methods for item type using class definition
 $class = (isset($class)) ? $class : 'post';
@@ -163,6 +166,7 @@ if (isset($validate)) {
 
 // get template
 $template = isset($template) ? $template : $modx->config['default_template'];
+
 
 // name of input form (to check for postbacks)
 if (!isset($formName)) {
