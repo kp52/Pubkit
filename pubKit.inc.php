@@ -1,7 +1,7 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: E1.6
+#  version: 1.6
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
