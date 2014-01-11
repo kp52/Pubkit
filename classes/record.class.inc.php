@@ -12,7 +12,6 @@ function __construct($pid=0, $fields=array(), $lang) {
 // set up table and field names
 	global $modx, $table_prefix;
 	$this->table = $table_prefix . $this->table;
-
 	if (isset($fields['params']['tvs'])) {
 		$tvDefs = explode(';', $fields['params']['tvs']);
 		foreach ($tvDefs as $tvDef) {
@@ -58,7 +57,6 @@ function Save($pid=NULL, $fields=array()) {
 	global $modx;
 	$this->id = $pid;
 	$newRecord = empty($pid);
-
 	$fields['updated'] = strftime('%Y-%m-%d %H:%M:%S');
 
 // translate field names to column names for TVs
@@ -80,6 +78,9 @@ function Save($pid=NULL, $fields=array()) {
 			$dbFields[$key] = $modx->db->escape($field);
 		}
 	}
+
+// non-FURL addresses will have set id via $_REQUEST & $fields[]
+    unset ($dbFields['id']);
 
 	if ($newRecord) {
 		if (property_exists($this->name, 'nsId')) {
@@ -178,20 +179,29 @@ function CheckOneField($fields, $field, $rule) {
 		case 'alt':
 // test for valid email OR phone number
 		$replyFields = 0;
+		$badMail = explode(',',strtolower($modx->getChunk('badmail')));
+		$badPhone = explode(',',$modx->getChunk('badphone'));
 
 		if (!empty($fields['email'])) {
 			$replyFields++;
 			if (preg_match('/^.+@.+\..{2,3}$/',$fields['email']) < 1) {
-			$errors[] = $lang['err_emailFormat'];
+				$errors[] = $lang['err_emailFormat'];
+			}
+			if (in_array($fields['email'], $badMail)) {
+				$errors[] = $lang['err_emailFormat'];
+				$this->Alert($fields, FALSE, 'email');
 			}
 		}
 
 		if (strlen($fields['phone']) > 1) {
 			$replyFields++;
 			if (preg_match('/[^0-9\(\)\-\+ ]+/', $fields['phone']) > 0) {
-			$errors[] = $lang['err_phoneFormat'];
+				$errors[] = $lang['err_phoneFormat'];
 			}
-
+			if (in_array($fields['phone'], $badPhone)) {
+				$errors[] = $lang['err_msgBadwords']; // lie about reason for rejection
+				$this->Alert($fields, FALSE, 'phone');
+			}
 		}
 
 		if ($replyFields < 1) {
@@ -217,6 +227,24 @@ function CheckOneField($fields, $field, $rule) {
 				}
 			}
 		}
+		break;
+
+		case 'badnames':
+		$bad = strtolower($modx->getChunk('badnames'));
+
+		if (!empty($bad)) {
+			$badNames = explode(",", $bad);
+            $badNames = array_map('trim', $badNames);
+			$msgName = trim(strtolower($curField));
+
+            $err = (isset($features[2])) ? 'err_' . $features[2] : 'err_msgBadwords';
+
+                $badName = trim($badName);
+                if (in_array($msgName, $badNames)) {
+    				$errors[] = $lang[$err];
+    				$this->Alert($fields, FALSE, 'name');
+                }
+            }
 		break;
 
 		case 'token':
