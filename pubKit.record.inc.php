@@ -1,22 +1,14 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: E1.0.0
+#  version: 1.6
 #  pubKit.record.inc.php: included file for custom table handling;
 #  Big overlap with pubkit.inc.php,
 #  but enough difference to merit a separate file
 #
-#  Oct 2011: snippet now makes tags into array
-#  Tags added as item properties, no longer explicitly named in item's class
-#
 #  Snippet code sets parameters and function/class file includes;
 #  it also creates instance of the object representing the DB record
 #::::::::::::::::::::::::::::::::::::::::
-
-#;;;;;;;;;; updates ;;;;;;;;;;;;;;;;;;;;;;;
-# May 2011: parameter for form name (see main snippet)
-# Upload handling
-#;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /* Already happened back in the main snippet code:
 	$item = new $class($docId, $fields, $lang);
@@ -91,6 +83,7 @@ if ($isPostBack) {
 	}
 
 	$errors = $item->CheckFields($fields);
+    $errors = array_unique($errors);
 
 	if (!isset($postid)) {
 		$errors[] = $lang['err_postid'];
@@ -119,7 +112,7 @@ if ($isPostBack) {
 // expects table to have column called rank as main ordering parameter
 		if (in_array('rank', $item->columns)) {
 			If (empty($fields['rank'])) {
-				$fields['rank'] = 9999999;
+				$fields['rank'] = 999;
 			}
 			$rankAdjust = ($fields['rank'] < $item->rank) ? -1 : +1;
 			$fields['rank'] = setFormRank($item->table, $fields['rank'], 2, $rankAdjust);
@@ -185,7 +178,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 	    $redirect = TRUE;
 	}
 
-	elseif ($cmd == 'setField') {
+	elseif ($cmd == 'setfield') {
 // restrict updated fields to request via second argument of Save()
 		$item = new $class($docId, $fields, $item->lang);
 		$update = array();
@@ -208,7 +201,7 @@ else {
 if (!empty($item->tvs) && empty($redirect)) {
 	foreach ($item->tvs as $tv => $elements) {
 		$field = $elements['field'];
-		$current = $fields[$field];
+		$current = isset($fields[$field]) ? $fields[$field] : $options[$tv]->defaultValue;
 		$modx->setPlaceholder($field, $options[$tv]->BuildSet($current, $elements['format']));
 // remove from fields so placeholder doesn't get overwritten
 	unset($fields[$field]);
