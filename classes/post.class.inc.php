@@ -5,7 +5,7 @@ class Post extends Resource
 
 	public $tvs = array(
 		'pkDate'=>NULL,
-		'pkDateTo'=>NULL
+		'pkDateTo'=>NULL,
 		);
 
 	public $validate = array(
@@ -27,13 +27,11 @@ function __construct($pid, $fields, $lang) {
 
 function CustomFields($fields, $doc) {
 	$customFields = array();
-
     $customFields['displayDate'] = strftime($this->lang['dateFormat'], strtotime($fields['pkDate']));
     $customFields['displayTo']   = ($fields['pkDateTo'] > 0) ?
 		strftime($this->lang['dateFormat'], strtotime($fields['pkDateTo'])) : "";
     $customFields['displayFrom'] = ($doc->Get('pub_date') > 0) ?
 		strftime($this->lang['dateFormat'], $doc->Get('pub_date')) : "";
-
 	return $customFields;
 }
 
