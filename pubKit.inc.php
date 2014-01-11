@@ -1,19 +1,19 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: E1.5
+#  version: E1.6
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
 #  it also creates instance of the object representing the resource
-#  
+#
 #::::::::::::::::::::::::::::::::::::::::
 
 // define location of main MODx content table
 $contentTable = $modx->getFullTableName('site_content');
 
 // test if input has come back from form (check for hidden field)
-$isPostBack = (isset($fields[$formName])) ? true:false; 
+$isPostBack = (isset($fields[$formName])) ? true:false;
 
 // 2-stage deletion - first prompt, then delete if confirmed
 if (isset($fields['confirmDeletion'])) {
@@ -65,10 +65,14 @@ if (isset($formtpl)) {
 // check that drafts parameter is set if using true previews
 if (isset($previewId) && !isset($drafts)) {
 	$formtpl = $lang['err_previews'];
-} 
+}
 
 // form submission: check mandatory fields, build error message
-if ($isPostBack) { 
+if ($isPostBack) {
+
+// retrieve showInMenu setting (before validation to preserve on other input errors)
+	    $showinmenu = (isset($fields['show'])) ? 1 : $showinmenu;
+		$hidemenu = 1 - $showinmenu;
 
 // handle file upload, flagged by class having uploadFile property
 	if (isset($item->uploadFile)) {
@@ -143,10 +147,6 @@ if ($isPostBack) {
 	   		$mnuidx = 0;
 	   	}
 
-// retrieve showInMenu setting
-	    $showinmenu = (isset($fields['show'])) ? 1 : $showinmenu;
-		$hidemenu = 1 - $showinmenu;
-
 // validate and format dates, set published or unpublished
 // NB unpub_date = displayTo + 1 day, or startDate + 1 day if no displayTo for an event
 		$startDate = strtotime($fields['displayDate']);
@@ -173,11 +173,14 @@ if ($isPostBack) {
 			if (isset($previewId)) {
 				$urId = isset($docId) ? $docId : "";
 				$docId = $previewId;
-				$postid = $drafts;
+
+                $postid = $previewId;
+
+// ID may be useful in the preview document or its template
 			} else {
 				$updateAlias = true;
 			}
-		} 
+		}
 
 // set user for author fields; web user ID is negated
 		if ($_SESSION['webValidated'] == 1) {
@@ -190,7 +193,7 @@ if ($isPostBack) {
 // *********** CREATE || UPDATE DOCUMENT **************
 // Use Document class to create/update document, including TV values
 // TO DO: convert introtext & content to entities if TEXTAREA, not if RT input
-		$doc = new Document($docId); 
+		$doc = new Document($docId);
 // reference type for weblinks
 		if ($fields['type'] === 'reference') {
 			$doc->Set('type','reference');
@@ -223,7 +226,7 @@ if ($isPostBack) {
 			}
 		}
 // rewrite TV values
-		foreach ($item->tvs as $tv=>$value) {
+        foreach ($item->tvs as $tv=>$value) {
 		    $value = (is_array($value)) ? implode('||', $value) : $value;
 			$doc->Set($tv, $modx->db->escape(htmlspecialchars($value)));
 		}
@@ -258,8 +261,8 @@ if ($isPostBack) {
 * New item, re-edit, request/do deletion,
 * or redisplay with error messages and entered data
 ****************************************************************/
-
 if (!empty($docId) && empty($redirect) && empty($message)) {
+
 	$doc = new Document($docId);
 
 // complete deletion (after confirmation)
@@ -277,13 +280,17 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		break;
 
 // request deletion. (returnId set in management or preview screen)
-	case 'delete':
-
+	case 'delete':  
 // Tailor 'Confirm delete' message for item type & language via class
-		if (isset($item->delForm)) {
-			$formtpl = $modx->getChunk($item->delForm);
-			$modx->setPlaceholder('delMsg', $item->delMsg);
-		} else {
+		if (isset($item->delForm)) { 
+			$formtpl = $modx->getChunk($item->delForm); 
+			if (method_exists($item, 'delMsg')) {
+				$delMsg = $item->delMsg($doc);
+			} else {
+				$delMsg = $item->delMsg;
+			}
+			$modx->setPlaceholder('delMsg', $delMsg);
+		} else { 
 			$formtpl = $confirmDeletionChunk;
 	    	$modx->setPlaceholder('title', $doc->Get('pagetitle'));
 	    	$modx->setPlaceholder('headline', $doc->Get('longtitle'));
@@ -304,7 +311,6 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 // set a document field directly - e.g. Unpublish
 	case 'setfield':
-
 		$doc = new Document($docId, $fields['docField']);
 		$doc->Set($fields['docField'], $fields['myValue']);
 		$doc->Save();
@@ -369,12 +375,12 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 // Publish (from button in preview)
     case 'publish': 
-// never-saved document has preview's ID. 
+// never-saved document has preview's ID.
 // revised and previewed docId set to old ID by preview snippet
 // previews using old scheme will have a docId by now
 		if (isset($previewId)) {
 			$previewDoc = new Document($previewId); 
-			$previewDoc->Duplicate();      
+			$previewDoc->Duplicate();
 			$previewDoc->Set('parent', $folder);
 
 			if ($docId == $previewId) {
@@ -383,9 +389,8 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 				$previewDoc->SaveAs($docId);
 			}
 		}
-
 // create new doc object - don't want to rewrite every field
-		$doc = new Document($docId, 'published,pub_date,introtext,content'); 
+		$doc = new Document($docId, 'published,pub_date,introtext,content');
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
 		$publishable = pubUnpub(
             $doc->Get('pkDate'),
@@ -457,8 +462,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		}
 		$redirect = true;
 	}
-} else {
-
+} else { 
 	if (empty($docId)) {
 		$modx->setPlaceholder('itemStatus', $lang['status_new']);
 	}
@@ -489,7 +493,7 @@ if (!empty($fields['updateAlias'])) {
 }
 
 // redirect after item creation/update/publication
-if ($redirect) {
+if ($redirect) { 
 
 // clear site cache (see pubKit.functions.php)
     if ($clearcache==1){
@@ -512,11 +516,13 @@ if ($redirect) {
     	$landing = $modx->makeUrl($doc->Get('id'));
     }
 
-  	if (isset($fields['preview'])) { 
+  	if (isset($fields['preview'])) {
 		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
-  		$landing .= 'template=preview&class=' . $class; 
+  		$landing .= 'template=preview&class=' . $class;
 		$landing .= '&docId=' . $doc->Get('id');
 		$landing .= '&urId=' . $urId;
+        $landing .= '&action=' . $modx->documentIdentifier;
+        $landing .= '&returnId=' . $folder;
 	} else {
    		$landing .= (!empty($docId)) ? '#' . $prefix . $docId: '';
 	}
@@ -549,15 +555,15 @@ if (isset($rtcontent)) {
 	} else {
 		$rtTv = $rtcontent;
 	}
-	
-	$rtValue = $fields[$rtcontent]; 
+
+	$rtValue = $fields[$rtcontent];
 	$pageInfo = $modx->getPageInfo($modx->documentIdentifier, '', 'id, published');
 
 	$editDoc = new Document($pageInfo['id'], 'published');
-	$editDoc->Set($rtTv, $rtValue); 
+	$editDoc->Set($rtTv, $rtValue);
 	$editDoc->Save();
 
-	$formatted  = implode('', $modx->getTemplateVarOutput($rtTv, '', $pageInfo['published'])); 
+	$formatted  = implode('', $modx->getTemplateVarOutput($rtTv, '', $pageInfo['published']));
 	$modx->setPlaceholder($rtTv, $formatted);
 }
 
