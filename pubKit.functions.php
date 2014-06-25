@@ -100,9 +100,7 @@ function resetRank($table, $parent, $inc) {
 	";
 	$modx->db->query($query);
 
-	$next = $modx->db->select('@rank');
-
-	return $next;
+	return;
 }
 
 function setFormRank($table, $index=0, $inc=2, $offset=-1) {
