@@ -5,14 +5,13 @@
 #  Author: Keith Penton (KP52)
 #  From original concepts by Raymond Irving (NewsPublisher), ur001 (document class)
 #
-#  Version: 1.6.0
-#  January 2014
+#  Version: 1.6.2
+#  Aug 2014
 ######################################################################################
 #  Parameters:
 #    &class       - type of item: blog, news post, event, custom record... Default = post
 #    &snipFolder  - name of folder containing include files
 #    &folder      - ID of folder where posts are stored
-#    &mail		  - set if PHPmailer to be used
 #    &uploads	  - set if forms include uploads
 #    &previewId   - ID for separate preview document
 #    &drafts      - ID for container of variant preview documents
@@ -29,6 +28,7 @@
 #    &tags        - name of (checkbox/radiobutton) TVs containing tags as semicolon-delimited list,
 #                   with fieldname and optional format class, thus:
 #                   tag1,fieldname1,format1;tag2,fieldname2,format2 ...
+#                   NB ***Database-record items use the &tvs parameter in the same format, not &tags***
 #    &delimiter   - delimiter for tags list; default ||
 #    &labelPos	  - radio|checkbox labels: 'R' (default) for right, 'L' = left, other value for no label
 #    &reqTags	  - comma-delimited list of field names of required tags
@@ -36,6 +36,7 @@
 #    &token       - name of placeholder & session variable created for token; default 'smersh'
 #    &tvs         - comma-separated list of text TVs to associate with item
 #                 - value may be set using double-colon:  tv1,tv2::value2
+#                 NB see not on &tags for record-type items
 #    &docFields	  - extra MODX document fields associated with item
 #    &<property=`value`> - override default value of (scalar) properties built into item type
 #    &validate    - override built-in validation for item type (creates array):
@@ -65,10 +66,6 @@ require_once($snipPath . 'classes/resource.class.inc.php');
 require_once($snipPath . 'classes/record.class.inc.php');
 require_once($snipPath . 'classes/optionsbuilder.class.inc.php');
 require_once($snipPath . 'pubKit.functions.php');
-
-if (!empty($mail)) {
-	require_once('manager/includes/controls/class.phpmailer.php');
-}
 
 define('ONE_DAY',86400); //seconds in a day (for calculating unpub dates)
 
