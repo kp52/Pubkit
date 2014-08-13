@@ -1,7 +1,7 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: 1.6
+#  version: 1.6.2
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
@@ -62,10 +62,12 @@ if (isset($formtpl)) {
 	$formtpl = $lang['err_form'];
 }
 
+/*
 // check that drafts parameter is set if using true previews
 if (isset($previewId) && !isset($drafts)) {
 	$formtpl = $lang['err_previews'];
 }
+*/
 
 // form submission: check mandatory fields, build error message
 if ($isPostBack) {
@@ -173,8 +175,9 @@ if ($isPostBack) {
 			if (isset($previewId)) {
 				$urId = isset($docId) ? $docId : "";
 				$docId = $previewId;
-
+                $urPostid = $postid;
                 $postid = $previewId;
+                $template = $previewTemplate;
 
 // ID may be useful in the preview document or its template
 			} else {
@@ -215,6 +218,10 @@ if ($isPostBack) {
 		$doc->Set('editedby', $userid);
 		$doc->SetTemplate($template);
 		$doc->Set('pub_date', $pubDate);
+// set publishedon time to now if unpublished becomes (re)published
+        if ($published) {
+            $doc->Set('publishedon', time());
+        }
 		$doc->Set('published', $published);
 		$doc->Set('unpub_date', $unpubDate);
 
@@ -226,14 +233,18 @@ if ($isPostBack) {
 			}
 		}
 // rewrite TV values
+// NB escaping is performed in document class
         foreach ($item->tvs as $tv=>$value) {
 		    $value = (is_array($value)) ? implode('||', $value) : $value;
-			$doc->Set($tv, $modx->db->escape(htmlspecialchars($value)));
+			$doc->Set($tv, htmlspecialchars($value));
 		}
 // Leave previous values if updating existing document
 		if (empty($docId)) {
 			$doc->Set('parent', $folder);
 			$doc->Set('createdon', time());
+            if ($published) {
+                $doc->Set('publishedon', time());
+            }
 			$doc->Set('createdby', $userid);
 			$doc->Set('deleted', '0');
 // resource's cacheability set in &cacheItem parameter, default = 1.
@@ -280,7 +291,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		break;
 
 // request deletion. (returnId set in management or preview screen)
-	case 'delete':  
+	case 'delete':
 // Tailor 'Confirm delete' message for item type & language via class
 		if (isset($item->delForm)) { 
 			$formtpl = $modx->getChunk($item->delForm); 
@@ -323,7 +334,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
  		$doc = new Document($previewId);
 		$fields['docId'] = $fields['urId'];
 // update item
-   case 'edit': 
+   case 'edit':
 		$modx->setPlaceholder('docId',     $doc->Get('id'));
 		$modx->setPlaceholder('pagetitle', $doc->Get('pagetitle'));
 		$modx->setPlaceholder('longtitle', $doc->Get('longtitle'));
@@ -374,14 +385,16 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		break;
 
 // Publish (from button in preview)
-    case 'publish': 
+    case 'publish':
 // never-saved document has preview's ID.
 // revised and previewed docId set to old ID by preview snippet
 // previews using old scheme will have a docId by now
 		if (isset($previewId)) {
-			$previewDoc = new Document($previewId); 
+			$previewDoc = new Document($previewId);
 			$previewDoc->Duplicate();
 			$previewDoc->Set('parent', $folder);
+// restore doc template - switched by preview mechanism
+            $previewDoc->Set('template', $template);
 
 			if ($docId == $previewId) {
 				$docId = $previewDoc->Save();
@@ -390,7 +403,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 			}
 		}
 // create new doc object - don't want to rewrite every field
-		$doc = new Document($docId, 'published,pub_date,introtext,content');
+		$doc = new Document($docId, 'published,pub_date,publishedon,introtext,content');
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
 		$publishable = pubUnpub(
             $doc->Get('pkDate'),
@@ -407,7 +420,9 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
         $doc->Set('introtext', $modx->db->escape($introtext));
         $doc->Set('content', $modx->db->escape($content));
 		$doc->Set('published', $publishable['published']);
-
+        if ($publishable['published']) {
+            $doc->Set('publishedon', time());
+        }
 		$doc->Set('pkPreviewFlag', 0);
 
 		unset($fields['preview']);
@@ -462,7 +477,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		}
 		$redirect = true;
 	}
-} else { 
+} else {
 	if (empty($docId)) {
 		$modx->setPlaceholder('itemStatus', $lang['status_new']);
 	}
@@ -519,10 +534,11 @@ if ($redirect) {
   	if (isset($fields['preview'])) {
 		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
   		$landing .= 'template=preview&class=' . $class;
+  		$landing .= '&tpl=' . $itemTpl;
 		$landing .= '&docId=' . $doc->Get('id');
 		$landing .= '&urId=' . $urId;
         $landing .= '&action=' . $modx->documentIdentifier;
-        $landing .= '&returnId=' . $folder;
+        $landing .= '&returnId=' . $urPostid;
 	} else {
    		$landing .= (!empty($docId)) ? '#' . $prefix . $docId: '';
 	}
