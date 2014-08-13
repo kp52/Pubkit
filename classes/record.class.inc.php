@@ -5,10 +5,13 @@ class Record
 {
 	public $recordType = 'record';
 	public $lang;
-	public $delForm = 'pk.item.delete.tpl';
+	public $delForm = 'pk-item-delete-tpl';
 	public $tvs = array();
 
-function __construct($pid=0, $fields=array(), $lang) {
+    public $showImg = 'assets/images/icons/flag_show.png';
+    public $hideImg = 'assets/images/icons/flag_hide.png';
+
+function __construct($pid=0, $fields=array(), $lang='english') {
 // set up table and field names
 	global $modx, $table_prefix;
 	$this->table = $table_prefix . $this->table;
@@ -40,6 +43,9 @@ function __construct($pid=0, $fields=array(), $lang) {
 function Populate($pid) {
 // retrieve field values from DB
 	global $modx;
+    if (!is_numeric($pid) && $pid[0] != chr(39)) {
+        $pid = chr(39) . $pid . chr(39);
+    }
 	$record = $modx->db->select('*',
 		$this->table,
 		"id = $pid ",
@@ -198,6 +204,7 @@ function CheckOneField($fields, $field, $rule) {
 			if (preg_match('/[^0-9\(\)\-\+ ]+/', $fields['phone']) > 0) {
 				$errors[] = $lang['err_phoneFormat'];
 			}
+
 			if (in_array($fields['phone'], $badPhone)) {
 				$errors[] = $lang['err_msgBadwords']; // lie about reason for rejection
 				$this->Alert($fields, FALSE, 'phone');
@@ -213,8 +220,9 @@ function CheckOneField($fields, $field, $rule) {
 		$bad = strtolower($modx->getChunk('badwords'));
 
 		if (!empty($bad)) {
-			$badWords = explode(",", $bad);
 			$msgWords = str_word_count(strtolower($curField), 1, '[');
+
+			$badWords = explode(",", $bad);
 
 			if ($features[1] == 'Req') {
 				foreach($msgWords as $msgWord) {
@@ -226,6 +234,22 @@ function CheckOneField($fields, $field, $rule) {
 					}
 				}
 			}
+            // look for phrases (in badwords list as words joined by %)
+            // add junk character at start to avoid false/zero confusion in failure test
+            $msgComp = '_' . implode('_', $msgWords);
+
+            function phrases($entry) {
+                return strpos($entry, '_');
+            }
+            $badPhrases = array_filter($badWords, 'phrases');
+            $msgComp = str_replace($badPhrases, '!!!FAIL!!!', $msgComp);
+
+            if (!strpos($msgComp, '!!!FAIL!!!') === false) {
+                $err = (isset($features[2])) ? 'err_' . $features[2] : 'err_badwords';
+                $errors[] = $lang[$err];
+                $this->Alert($fields, FALSE, 'content');
+                break;
+            }
 		}
 		break;
 
@@ -258,9 +282,30 @@ function CheckOneField($fields, $field, $rule) {
 	return $errors;
 }
 
-function Alert($fields,$successful=TRUE, $reason=NULL) {
-// dummy function for classes with no email routines, in case 'token' is validated
-// you could have an email to an admin here, or a logging action
+function PubFlag($published) {
+// set published/unpublished flags as icons
+    $pubStr = '<img src="%s" title="%s" alt="%2$s" />';
+
+    if ($published == 0) {
+        $pubUnpub = '1';
+        $pubCmd = vsprintf($pubStr, array($this->showImg, 'Publish'));
+    } else {
+        $pubUnpub = '0';
+        $pubCmd = vsprintf($pubStr, array($this->hideImg, 'Unpublish'));
+    }
+
+    return array('pubUnpub'=>$pubUnpub, 'pubCmd'=>$pubCmd);
+}
+
+function SetUpdated($table, $updateCol='updated', $where='', $showUnpublished=0) {
+    global $modx;
+
+    if (!empty($where)) {
+        $where = "WHERE " . $where;
+    }
+    $result = $modx->db->getValue("SELECT MAX($updateCol) FROM $table $where");
+    $modx->setPlaceholder('updated', strtotime($result));
+    return;
 }
 
 }
