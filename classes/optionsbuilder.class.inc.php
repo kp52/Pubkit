@@ -17,7 +17,7 @@ function __construct($tv, $setName) {
     $this->type = $this->definition['type'];
 	$this->setName = $setName;
 	$this->options = array();
-	$unpack = explode("||",$this->definition['elements']);
+	$unpack = explode("||",trim($this->definition['elements']));
 	for ($j=0;$j<count($unpack);$j++) {
 		$elements = explode("==",$unpack[$j]);
 		$this->options[$elements[0]]= (isset($elements[1])) ? $elements[1] : $elements[0];
