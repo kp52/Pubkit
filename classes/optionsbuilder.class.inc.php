@@ -87,7 +87,7 @@ function buildSet($selected=array(), $className="", $labelPos='') {
 		}
 	}
 
-	elseif ($this->type == 'listbox') {
+	elseif ($this->type == 'listbox' || $this->type == 'dropdown') {
         $selected = $selected[0];
 		if (empty($selected)) {$selected = $this->defaultValue;}
 		$class = (empty($className)) ? "" : ' class="' . $className . '"';
