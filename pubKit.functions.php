@@ -1,7 +1,7 @@
 <?php
 // pubKit.Functions.php
-// general functions for PubKit E1.2.0
-// Oct 2012
+// general functions for PubKit E1.6.3
+// Apr 2015
 
 function setAlias ($id, $title, $permalinks, $permaLength) {
 	if ($permalinks == 1) {
@@ -82,7 +82,7 @@ function pubUnpub($itemDate, $pubDate=0, $endDate=0, $oneDayEvent=false) {
 function setRank($table, $index, $docId, $parent, $inc=1, $offset) {
 // add or update menu index for MODX resource item
 	global $modx;
-	resetRank($table, $parent,$inc);
+	resetRank($table, $parent, $inc);
 	$ins = 2 * $index + $offset;
 	return $ins;
 }

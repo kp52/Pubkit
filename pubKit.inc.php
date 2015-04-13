@@ -1,7 +1,7 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: 1.6.2
+#  version: 1.6.3
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
@@ -178,6 +178,9 @@ if ($isPostBack) {
                 $urPostid = $postid;
                 $postid = $previewId;
                 $template = $previewTemplate;
+                if (isset($fields['menuindex'])) {
+                    $mnuidx = $fields['menuindex'];
+                }
 
 // ID may be useful in the preview document or its template
 			} else {
@@ -391,8 +394,14 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 // previews using old scheme will have a docId by now
 		if (isset($previewId)) {
 			$previewDoc = new Document($previewId);
-			$previewDoc->Duplicate();
+// duplicate with TVs, no menuindex increment; adjust menuindex sequence
+			$previewDoc->Duplicate(true, 0);
 			$previewDoc->Set('parent', $folder);
+
+            $mnuidx = $previewDoc->Get('menuindex');
+            $mnuidx = setRank($contentTable, $mnuidx, '', $folder, 2, -1);
+			$previewDoc->Set('menuindex', $mnuidx);
+
 // restore doc template - switched by preview mechanism
             $previewDoc->Set('template', $template);
 
@@ -401,7 +410,8 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 			} else {
 				$previewDoc->SaveAs($docId);
 			}
-		}
+            resetRank($contentTable, $folder, 1);
+        }
 // create new doc object - don't want to rewrite every field
 		$doc = new Document($docId, 'published,pub_date,publishedon,introtext,content');
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
@@ -434,7 +444,6 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 	case 'move':
 // see comment on 'publish' re new document object
-
 		$doc = new Document($docId,'menuindex');
 		$mnuidx = $fields['menuindex'];
 		$currentMnu = $doc->Get(menuindex);
@@ -555,7 +564,7 @@ if(!$allowAnyPost && !$modx->isMemberOfWebGroup($postgrp)) {
 // populate form fields placeholders with any existing data
 // convert quotes etc. so text fields are not mangled
 // assuming XHTML, single quotes are left alone
-	foreach($fields as $n=>$v) { 
+	foreach($fields as $n=>$v) {
 		if (is_string($v)) {
 	        $v = htmlspecialchars($v);
 		}
