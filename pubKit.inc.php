@@ -1,7 +1,7 @@
 <?php
 #::::::::::::::::::::::::::::::::::::::::
 #  Snippet Name: PubKit
-#  version: 1.6.3
+#  version: 1.6.4
 #  pubKit.inc.php: included file;
 #
 #  See snippet code for parameters and function/class file includes;
@@ -296,7 +296,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 // request deletion. (returnId set in management or preview screen)
 	case 'delete':
 // Tailor 'Confirm delete' message for item type & language via class
-		if (isset($item->delForm)) { 
+		if (isset($item->delForm)) {
 			$formtpl = $modx->getChunk($item->delForm); 
 			if (method_exists($item, 'delMsg')) {
 				$delMsg = $item->delMsg($doc);
@@ -411,7 +411,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 				$previewDoc->SaveAs($docId);
 			}
             resetRank($contentTable, $folder, 1);
-        }
+		}
 // create new doc object - don't want to rewrite every field
 		$doc = new Document($docId, 'published,pub_date,publishedon,introtext,content');
 // may not be due for publication yet; NB TV Unixtime conversion happens in function
@@ -444,6 +444,7 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 
 	case 'move':
 // see comment on 'publish' re new document object
+
 		$doc = new Document($docId,'menuindex');
 		$mnuidx = $fields['menuindex'];
 		$currentMnu = $doc->Get(menuindex);
@@ -476,10 +477,11 @@ if (!empty($docId) && empty($redirect) && empty($message)) {
 		emptyCache();
 
 		$landing = $modx->makeUrl($modx->documentIdentifier);
-		$landing .= '?docId=' . $docId . '&command=edit';
+		$landing .= ($modx->config['friendly_urls'] == 1) ? '?' : '&';
+		$landing .= 'docId=' . $docId . '&command=edit';
 		$modx->sendRedirect($landing);
 		break;
-		
+
 	case 'cancel':
 		if (!empty($fields['returnId'])) {
 			$postid = $fields['returnId'];
@@ -564,7 +566,7 @@ if(!$allowAnyPost && !$modx->isMemberOfWebGroup($postgrp)) {
 // populate form fields placeholders with any existing data
 // convert quotes etc. so text fields are not mangled
 // assuming XHTML, single quotes are left alone
-	foreach($fields as $n=>$v) {
+	foreach($fields as $n=>$v) { 
 		if (is_string($v)) {
 	        $v = htmlspecialchars($v);
 		}
